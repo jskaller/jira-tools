@@ -13,7 +13,7 @@ load_dotenv()
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
-def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):
     init_db()
     yield
 
