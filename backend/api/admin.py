@@ -34,18 +34,51 @@ def get_settings(user=Depends(require_admin)):
 
 @router.put("/settings")
 def put_settings(payload: dict, user=Depends(require_admin)):
+    print("[api/admin] PUT /settings payload:", payload)
     db = SessionLocal()
-    s = db.query(Settings).first()
-    for k in ["jira_base_url","jira_email","jql_default","time_mode","bh_start","bh_end","max_issues","updated_days_limit","agg_mode","use_real_jira"]:
-        if k in payload:
-            setattr(s, k, payload[k])
-    if "bh_days" in payload:
-        s.bh_days_json = json.dumps(payload["bh_days"])
-    if "jira_token" in payload and payload["jira_token"]:
-        s.jira_token_ciphertext = fernet().encrypt(payload["jira_token"].encode()).decode()
-    db.commit()
-    db.close()
-    return {"ok": True}
+    try:
+        s = db.query(Settings).first()
+        if not s:
+            s = Settings()
+            db.add(s)
+            db.commit()
+            db.refresh(s)
+        # Coerce types carefully
+        int_fields = ["bh_start","bh_end","max_issues","updated_days_limit"]
+        for k in int_fields:
+            if k in payload and payload[k] is not None:
+                try:
+                    payload[k] = int(payload[k])
+                except Exception:
+                    return {"ok": False, "error": f"Invalid integer for {k}"}
+        bool_fields = ["use_real_jira"]
+        for k in bool_fields:
+            if k in payload and not isinstance(payload[k], bool):
+                v = str(payload[k]).lower()
+                payload[k] = v in ("1","true","yes","on")
+        for k in ["jira_base_url","jira_email","jql_default","time_mode","bh_start","bh_end","max_issues","updated_days_limit","agg_mode","use_real_jira"]:
+            if k in payload:
+                setattr(s, k, payload[k])
+        if "bh_days" in payload and payload["bh_days"] is not None:
+            import json as _json
+            try:
+                # accept list or stringified list
+                bh_days_val = payload["bh_days"]
+                if isinstance(bh_days_val, str):
+                    bh_days_val = _json.loads(bh_days_val)
+                s.bh_days_json = _json.dumps(bh_days_val)
+            except Exception as e:
+                return {"ok": False, "error": f"Invalid bh_days: {e}"}
+        if "jira_token" in payload and payload["jira_token"]:
+            s.jira_token_ciphertext = fernet().encrypt(payload["jira_token"].encode()).decode()
+        db.commit()
+        return {"ok": True}
+    except Exception as e:
+        db.rollback()
+        print("[api/admin] PUT /settings error:", repr(e))
+        return {"ok": False, "error": str(e)}
+    finally:
+        db.close()
 
 
 @router.get("/test-connection")
