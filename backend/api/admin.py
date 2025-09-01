@@ -110,9 +110,8 @@ async def test_connection_post(payload: dict | None = None, user=Depends(require
     db = SessionLocal()
     s = db.query(Settings).first()
     db.close()
-    # Use provided values if present; fall back to DB
-    base_url = (payload or {}).get("jira_base_url") or (s.jira_base_url if s else None)
-    email = (payload or {}).get("jira_email") or (s.jira_email if s else None)
+    base_url = ((payload or {}).get("jira_base_url") or (s.jira_base_url if s else "")).strip().rstrip("/")
+    email = ((payload or {}).get("jira_email") or (s.jira_email if s else "")).strip()
     token_plain = (payload or {}).get("jira_token")
     configured = bool(base_url and email and (token_plain or (s and s.jira_token_ciphertext)))
     if not configured:
@@ -121,26 +120,27 @@ async def test_connection_post(payload: dict | None = None, user=Depends(require
         if not email: missing.append("email")
         if not (token_plain or (s and s.jira_token_ciphertext)): missing.append("token")
         return {"configured": False, "ok": False, "error": "Missing " + ", ".join(missing)}
-    # Temp client that uses provided values when present
     try:
-        if token_plain is not None:
-            # Build a transient client by temporarily overriding settings values
-            # so HttpJiraClient picks them up
+        if token_plain:
+            # transient client using provided token (trim to avoid whitespace issues)
             class TempClient(HttpJiraClient):
                 def __init__(self):
-                    # bypass DB fetch in parent; set fields directly
-                    self.base = (base_url or "").rstrip("/")
+                    self.base = base_url
                     self.email = email
                     import base64 as _b64, httpx
-                    auth = _b64.b64encode(f"{self.email}:{token_plain}".encode()).decode()
+                    tok = token_plain.strip()
+                    auth = _b64.b64encode(f"{self.email}:{tok}".encode()).decode()
                     self.client = httpx.AsyncClient(base_url=self.base, headers={"Authorization": f"Basic {auth}", "Accept":"application/json"}, timeout=httpx.Timeout(10.0, connect=5.0))
             client = TempClient()
+            token_mode = "payload"
         else:
             client = HttpJiraClient()
+            token_mode = "stored"
         me = await client.me()
-        return {"configured": True, "ok": True, "account": {"displayName": me.get("displayName"), "emailAddress": me.get("emailAddress"), "accountId": me.get("accountId")}}
+        return {"configured": True, "ok": True, "account": {"displayName": me.get("displayName"), "emailAddress": me.get("emailAddress"), "accountId": me.get("accountId")}, "base_url": base_url, "email": email, "token_mode": token_mode}
     except Exception as e:
-        return {"configured": True, "ok": False, "error": str(e)}
+        # Include basic diagnostics (do not echo token)
+        return {"configured": True, "ok": False, "error": str(e), "base_url": base_url, "email": email, "token_mode": ("payload" if token_plain else "stored")}
 
 @router.get("/_debug/settings")
 def debug_settings(user=Depends(require_admin)):

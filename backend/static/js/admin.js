@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const who = (j.account && (j.account.displayName || j.account.emailAddress)) || 'OK';
           msg.textContent = 'Connected as ' + who;
         } else {
-          msg.textContent = 'Connection failed: ' + (j.error || 'Unknown error');
+          msg.textContent = `Connection failed: ${j.error || 'Unknown error'} [mode=${j.token_mode||'?'} base=${j.base_url||'?'} email=${j.email||'?'}]`;
         }
       } catch (e) {
         console.error(e);

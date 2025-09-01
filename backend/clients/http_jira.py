@@ -9,36 +9,23 @@ class HttpJiraClient:
         settings = db.query(Settings).first()
         db.close()
         self.base = (settings.jira_base_url or "").rstrip("/")
-        self.email = settings.jira_email
-        token = settings.jira_token_ciphertext
+        self.email = (settings.jira_email or "").strip()
+        token_ct = settings.jira_token_ciphertext
         self.token = None
-        if token:
-            f = fernet_from_env()
+        if token_ct:
             try:
-                self.token = f.decrypt(token.encode()).decode()
-            except Exception:
+                t = fernet_from_env().decrypt(token_ct.encode()).decode()
+                self.token = t.strip()
+                print("[http_jira] token decrypt: ok (len=%d)" % len(self.token))
+            except Exception as e:
+                print("[http_jira] token decrypt FAILED:", repr(e))
                 self.token = None
-        self.client = httpx.AsyncClient(base_url=self.base, headers=self._headers())
+        self.client = httpx.AsyncClient(base_url=self.base, headers=self._headers(), timeout=httpx.Timeout(10.0, connect=5.0))
 
     def _headers(self):
         if self.email and self.token:
             import base64
-            auth = base64.b64encode(f"{self.email}:{self.token}".encode()).decode()
+            raw = f"{self.email}:{self.token}".encode()
+            auth = base64.b64encode(raw).decode()
             return {"Authorization": f"Basic {auth}", "Accept": "application/json"}
         return {"Accept": "application/json"}
-
-    async def search_issues(self, jql: str, max_results: int = 50) -> Dict[str, Any]:
-        params = {"jql": jql, "maxResults": max_results, "expand": "changelog"}
-        r = await self.client.get("/rest/api/3/search", params=params)
-        r.raise_for_status()
-        return r.json()
-
-    async def get_issue_changelog(self, issue_key: str) -> Dict[str, Any]:
-        r = await self.client.get(f"/rest/api/3/issue/{issue_key}/changelog")
-        r.raise_for_status()
-        return r.json()
-
-    async def me(self) -> Dict[str, Any]:
-        r = await self.client.get("/rest/api/3/myself")
-        r.raise_for_status()
-        return r.json()
