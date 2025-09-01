@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h5 m-0">Report {{ report_id }}</h1>
+  <div class="btn-group">
+    <a class="btn btn-sm btn-outline-secondary" href="/api/reports/{{ report_id }}/csv?which=stints">Stints CSV</a>
+    <a class="btn btn-sm btn-outline-secondary" href="/api/reports/{{ report_id }}/csv?which=issue">Issue Stats CSV</a>
+    <a class="btn btn-sm btn-outline-secondary" href="/api/reports/{{ report_id }}/csv?which=rollups">Rollups CSV</a>
+  </div>
+</div>
+<div class="card">
+  <div class="card-body">
+    <div id="chart-container">
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+</div>
+<script>
+(async function() {
+  const res = await fetch('/api/reports/{{ report_id }}');
+  const data = await res.json();
+  // For first drop, fake a small chart using issue count
+  const ctx = document.getElementById('chart').getContext('2d');
+  if (window.Chart) {
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.issues,
+        datasets: [{label: 'Issues', data: data.issues.map(_=>1)}]
+      }
+    });
+  } else {
+    document.getElementById('chart-container').innerHTML = '<div class="text-muted">Chart.js not loaded.</div>';
+  }
+})();
+</script>
+{% endblock %}

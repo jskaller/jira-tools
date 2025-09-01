@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h4 mb-3">Admin Settings</h1>
+<form id="admin-form" class="vstack gap-3">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">Jira Base URL</label>
+      <input class="form-control" name="jira_base_url" placeholder="https://your-domain.atlassian.net">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Jira Email</label>
+      <input class="form-control" name="jira_email">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Jira API Token</label>
+      <input class="form-control" name="jira_token" type="password" placeholder="••••••">
+      <small class="text-muted">Stored encrypted at rest.</small>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Default JQL</label>
+      <input class="form-control" name="jql_default" placeholder="order by updated desc">
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-3">
+      <label class="form-label">BH Start (hour)</label>
+      <input class="form-control" name="bh_start" type="number" value="9">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">BH End (hour)</label>
+      <input class="form-control" name="bh_end" type="number" value="17">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Max Issues</label>
+      <input class="form-control" name="max_issues" type="number" value="25000">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Updated (days)</label>
+      <input class="form-control" name="updated_days_limit" type="number" value="180">
+    </div>
+  </div>
+  <div class="form-check form-switch">
+    <input class="form-check-input" type="checkbox" role="switch" id="use_real_jira">
+    <label class="form-check-label" for="use_real_jira">Use Real Jira (off = Mock)</label>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit">Save</button>
+    <button class="btn btn-outline-secondary" id="test-conn" type="button">Test connection</button>
+  </div>
+  <div id="admin-msg" class="mt-2"></div>
+</form>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const res = await fetch('/api/admin/settings');
+  if (res.ok) {
+    const s = await res.json();
+    for (const k of ['jira_base_url','jira_email','jql_default','bh_start','bh_end','max_issues','updated_days_limit']) {
+      const el = document.querySelector(`[name="${k}"]`);
+      if (el) el.value = s[k] ?? '';
+    }
+    document.getElementById('use_real_jira').checked = !!s.use_real_jira;
+  }
+});
+document.getElementById('admin-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const payload = Object.fromEntries(fd.entries());
+  payload.use_real_jira = document.getElementById('use_real_jira').checked;
+  for (const k of ['bh_start','bh_end','max_issues','updated_days_limit']) payload[k] = Number(payload[k]);
+  const res = await fetch('/api/admin/settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  document.getElementById('admin-msg').textContent = res.ok ? 'Saved.' : 'Failed to save';
+});
+document.getElementById('test-conn').addEventListener('click', async () => {
+  const r = await fetch('/api/admin/test-connection');
+  const j = await r.json();
+  document.getElementById('admin-msg').textContent = j.configured ? 'Looks configured.' : 'Not configured.';
+});
+</script>
+{% endblock %}
