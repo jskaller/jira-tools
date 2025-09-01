@@ -1,7 +1,7 @@
 from typing import Dict, Any
 import httpx, os
 from ..db import SessionLocal, Settings
-from cryptography.fernet import Fernet
+from ..util.crypto import fernet_from_env
 
 class HttpJiraClient:
     def __init__(self):
@@ -13,7 +13,7 @@ class HttpJiraClient:
         token = settings.jira_token_ciphertext
         self.token = None
         if token:
-            f = Fernet(os.getenv("APP_SECRET", "dev-secret").encode().ljust(32, b'0')[:32])
+            f = fernet_from_env()
             try:
                 self.token = f.decrypt(token.encode()).decode()
             except Exception:

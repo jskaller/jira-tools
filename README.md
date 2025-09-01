@@ -22,3 +22,5 @@ bash backend/run.sh
 git add .
 git commit -m "0002: hotfix - itsdangerous pin, backend package init, db import fix"
 ```
+
+Real Jira Test: configure Admin (URL, email, token), then click Test connection to call /myself.

@@ -2,7 +2,7 @@ import os, json
 from fastapi import APIRouter, Depends, HTTPException
 from ..db import SessionLocal, Settings
 from ..security import require_admin
-from cryptography.fernet import Fernet
+from ..util.crypto import fernet_from_env
 
 router = APIRouter()
 
@@ -47,9 +47,21 @@ def put_settings(payload: dict, user=Depends(require_admin)):
     db.close()
     return {"ok": True}
 
+
 @router.get("/test-connection")
 async def test_connection(user=Depends(require_admin)):
+    from ..clients.http_jira import HttpJiraClient
     db = SessionLocal()
     s = db.query(Settings).first()
     db.close()
-    return {"configured": bool(s.jira_email and s.jira_token_ciphertext and s.jira_base_url)}
+    configured = bool(s and s.jira_email and s.jira_token_ciphertext and s.jira_base_url)
+    if not configured:
+        return {"configured": False, "ok": False, "error": "Missing base URL, email, or token."}
+    if not (s.jira_base_url.startswith("https://") and ".atlassian.net" in s.jira_base_url):
+        return {"configured": True, "ok": False, "error": "Base URL should be like https://<org>.atlassian.net"}
+    try:
+        client = HttpJiraClient()
+        me = await client.me()
+        return {"configured": True, "ok": True, "account": {"displayName": me.get("displayName"), "emailAddress": me.get("emailAddress"), "accountId": me.get("accountId")}}
+    except Exception as e:
+        return {"configured": True, "ok": False, "error": str(e)}

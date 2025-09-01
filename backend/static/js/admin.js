@@ -35,3 +35,30 @@ if (testBtn) {
     if (msg) msg.textContent = j.configured ? 'Looks configured.' : 'Not configured.';
   });
 }
+
+
+(function(){
+  const btn = document.getElementById('test-conn');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const msg = document.getElementById('admin-msg');
+    if (msg) msg.textContent = 'Testing...';
+    try {
+      const r = await fetch('/api/admin/test-connection');
+      const j = await r.json();
+      if (!j.configured) {
+        msg.textContent = 'Not configured: ' + (j.error || 'Provide base URL, email, and token.');
+      } else if (j.ok) {
+        const who = (j.account && (j.account.displayName || j.account.emailAddress)) || 'OK';
+        msg.textContent = 'Connected as ' + who;
+      } else {
+        msg.textContent = 'Connection failed: ' + (j.error || 'Unknown error');
+      }
+    } catch (e) {
+      if (msg) msg.textContent = 'Connection failed: ' + e;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
