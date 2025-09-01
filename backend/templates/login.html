@@ -6,7 +6,8 @@
       <div class="card-body">
         <h1 class="h4 mb-3">Login</h1>
         {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
-        <form method="post" action="/login" class="vstack gap-3">
+        <form method="post" action="/login" class="vstack gap-3" autocomplete="off" novalidate>
+  <input type="text" name="username" autocomplete="username" style="position:absolute;left:-9999px;top:-9999px;width:0;height:0;border:0;padding:0;">
           <div>
             <label class="form-label">Email</label>
             <input class="form-control" type="email" name="email" autocomplete="username" required>
