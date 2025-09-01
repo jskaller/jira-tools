@@ -15,22 +15,6 @@
     </div>
   </div>
 </div>
-<script>
-(async function() {
-  const res = await fetch('/api/reports/{{ report_id }}');
-  const data = await res.json();
-  const ctx = document.getElementById('chart').getContext('2d');
-  if (window.Chart) {
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: data.issues,
-        datasets: [{label: 'Issues', data: data.issues.map(_=>1)}]
-      }
-    });
-  } else {
-    document.getElementById('chart-container').innerHTML = '<div class="text-muted">Chart.js not loaded.</div>';
-  }
-})();
-</script>
 {% endblock %}
+
+<script src="/static/js/report_detail.js"></script>

@@ -5,15 +5,15 @@
   <div class="row g-3">
     <div class="col-md-6">
       <label class="form-label">Jira Base URL</label>
-      <input class="form-control" name="jira_base_url" placeholder="https://your-domain.atlassian.net">
+      <input class="form-control" name="jira_base_url" autocomplete="url" placeholder="https://your-domain.atlassian.net">
     </div>
     <div class="col-md-6">
       <label class="form-label">Jira Email</label>
-      <input class="form-control" name="jira_email">
+      <input class="form-control" name="jira_email" autocomplete="email">
     </div>
     <div class="col-md-6">
       <label class="form-label">Jira API Token</label>
-      <input class="form-control" name="jira_token" type="password" placeholder="••••••">
+      <input class="form-control" name="jira_token" type="password" autocomplete="new-password" placeholder="••••••">
       <small class="text-muted">Stored encrypted at rest.</small>
     </div>
     <div class="col-md-6">
@@ -49,31 +49,6 @@
   </div>
   <div id="admin-msg" class="mt-2"></div>
 </form>
-<script>
-document.addEventListener('DOMContentLoaded', async () => {
-  const res = await fetch('/api/admin/settings');
-  if (res.ok) {
-    const s = await res.json();
-    for (const k of ['jira_base_url','jira_email','jql_default','bh_start','bh_end','max_issues','updated_days_limit']) {
-      const el = document.querySelector(`[name="${k}"]`);
-      if (el) el.value = s[k] ?? '';
-    }
-    document.getElementById('use_real_jira').checked = !!s.use_real_jira;
-  }
-});
-document.getElementById('admin-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const payload = Object.fromEntries(fd.entries());
-  payload.use_real_jira = document.getElementById('use_real_jira').checked;
-  for (const k of ['bh_start','bh_end','max_issues','updated_days_limit']) payload[k] = Number(payload[k]);
-  const res = await fetch('/api/admin/settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-  document.getElementById('admin-msg').textContent = res.ok ? 'Saved.' : 'Failed to save';
-});
-document.getElementById('test-conn').addEventListener('click', async () => {
-  const r = await fetch('/api/admin/test-connection');
-  const j = await r.json();
-  document.getElementById('admin-msg').textContent = j.configured ? 'Looks configured.' : 'Not configured.';
-});
-</script>
 {% endblock %}
+
+<script src="/static/js/admin.js"></script>
