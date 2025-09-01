@@ -102,7 +102,7 @@ async def test_connection(user=Depends(require_admin)):
 
 @router.post("/test-connection")
 async def test_connection_post(payload: dict | None = None, user=Depends(require_admin)):
-    print("[api/admin] POST /test-connection payload:", payload)
+    print('[api/admin] POST /test-connection payload:', payload)
     from ..clients.http_jira import HttpJiraClient
     db = SessionLocal()
     s = db.query(Settings).first()
