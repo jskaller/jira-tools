@@ -10,7 +10,14 @@ from .db import init_db, SessionLocal, User, Settings, get_db
 from .api import auth as auth_api, admin as admin_api, reports as reports_api, sync as sync_api
 
 load_dotenv()
-app = FastAPI(title="jira-reports")
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+app = FastAPI(title="jira-reports", lifespan=lifespan)
 
 # Sessions (cookie-based)
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("APP_SECRET", "dev-secret"))
@@ -24,10 +31,6 @@ app.include_router(auth_api.router, prefix="/api/auth", tags=["auth"])
 app.include_router(admin_api.router, prefix="/api/admin", tags=["admin"])
 app.include_router(reports_api.router, prefix="/api/reports", tags=["reports"])
 app.include_router(sync_api.router, prefix="/api/sync", tags=["sync"])
-
-@app.on_event("startup")
-def on_startup():
-    init_db()
 
 # ---- UI routes ----
 
