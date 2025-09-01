@@ -99,3 +99,42 @@ async def test_connection(user=Depends(require_admin)):
         return {"configured": True, "ok": True, "account": {"displayName": me.get("displayName"), "emailAddress": me.get("emailAddress"), "accountId": me.get("accountId")}}
     except Exception as e:
         return {"configured": True, "ok": False, "error": str(e)}
+
+@router.post("/test-connection")
+async def test_connection_post(payload: dict | None = None, user=Depends(require_admin)):
+    print("[api/admin] POST /test-connection payload:", payload)
+    from ..clients.http_jira import HttpJiraClient
+    db = SessionLocal()
+    s = db.query(Settings).first()
+    db.close()
+    # Use provided values if present; fall back to DB
+    base_url = (payload or {}).get("jira_base_url") or (s.jira_base_url if s else None)
+    email = (payload or {}).get("jira_email") or (s.jira_email if s else None)
+    token_plain = (payload or {}).get("jira_token")
+    configured = bool(base_url and email and (token_plain or (s and s.jira_token_ciphertext)))
+    if not configured:
+        missing = []
+        if not base_url: missing.append("base URL")
+        if not email: missing.append("email")
+        if not (token_plain or (s and s.jira_token_ciphertext)): missing.append("token")
+        return {"configured": False, "ok": False, "error": "Missing " + ", ".join(missing)}
+    # Temp client that uses provided values when present
+    try:
+        if token_plain is not None:
+            # Build a transient client by temporarily overriding settings values
+            # so HttpJiraClient picks them up
+            class TempClient(HttpJiraClient):
+                def __init__(self):
+                    # bypass DB fetch in parent; set fields directly
+                    self.base = (base_url or "").rstrip("/")
+                    self.email = email
+                    import base64 as _b64, httpx
+                    auth = _b64.b64encode(f"{self.email}:{token_plain}".encode()).decode()
+                    self.client = httpx.AsyncClient(base_url=self.base, headers={"Authorization": f"Basic {auth}", "Accept":"application/json"}, timeout=httpx.Timeout(10.0, connect=5.0))
+            client = TempClient()
+        else:
+            client = HttpJiraClient()
+        me = await client.me()
+        return {"configured": True, "ok": True, "account": {"displayName": me.get("displayName"), "emailAddress": me.get("emailAddress"), "accountId": me.get("accountId")}}
+    except Exception as e:
+        return {"configured": True, "ok": False, "error": str(e)}
