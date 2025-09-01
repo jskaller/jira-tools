@@ -1,6 +1,6 @@
 import datetime as dt
-from typing import List, Dict, Any
-from ..db import SessionLocal, Project, Issue, Transition, Stint, Settings, Report, ReportIssue
+from typing import Dict, Any
+from ..db import SessionLocal, Project, Issue, Transition, Stint, Settings
 from .timecalc import business_seconds
 from ..clients.mock_jira import MockJiraClient
 from ..clients.http_jira import HttpJiraClient
@@ -8,11 +8,17 @@ from ..clients.http_jira import HttpJiraClient
 async def get_client(use_real: bool):
     return HttpJiraClient() if use_real else MockJiraClient()
 
+def json_to_set(s: str):
+    import json
+    try:
+        return set(json.loads(s))
+    except Exception:
+        return {0,1,2,3,4}
+
 async def sync_run(params: Dict[str, Any]) -> Dict[str, Any]:
     db = SessionLocal()
     settings = db.query(Settings).first()
     client = await get_client(settings.use_real_jira)
-    # Very small scope for first drop: use mock client unless admin toggled real
     jql = params.get("jql") or settings.jql_default or "order by updated desc"
     data = await client.search_issues(jql=jql, max_results=min(settings.max_issues, 1000))
     count = 0
@@ -21,7 +27,6 @@ async def sync_run(params: Dict[str, Any]) -> Dict[str, Any]:
         fields = raw["fields"]
         proj_key = fields["project"]["key"]
         proj_name = fields["project"]["name"]
-        # upsert project
         if not db.get(Project, proj_key):
             db.add(Project(key=proj_key, name=proj_name))
         created = dt.datetime.fromisoformat(fields["created"])
@@ -37,20 +42,17 @@ async def sync_run(params: Dict[str, Any]) -> Dict[str, Any]:
             issue.status = fields["status"]["name"]
             issue.status_category = fields["status"]["statusCategory"]["name"]
             issue.updated = updated
-        # transitions
         changelog = await client.get_issue_changelog(key)
         db.query(Transition).filter(Transition.issue_key==key).delete()
         for v in changelog.get("values", []):
             at = dt.datetime.fromisoformat(v["at"])
             db.add(Transition(issue_key=key, from_status=v["from"], to_status=v["to"], at=at))
         db.commit()
-        # build stints
         db.query(Stint).filter(Stint.issue_key==key).delete()
         trans = db.query(Transition).filter(Transition.issue_key==key).order_by(Transition.at.asc()).all()
         if not trans:
             continue
-        # initial stint from created -> first transition.to (ish)
-        prev_time = issue.created
+        prev_time = created
         prev_status = trans[0].from_status
         entry_index = 0
         for t in trans:
@@ -63,8 +65,7 @@ async def sync_run(params: Dict[str, Any]) -> Dict[str, Any]:
             prev_status = t.to_status
             prev_time = t.at
             entry_index += 1
-        # final stint to issue.updated
-        end = issue.updated
+        end = updated
         dur_24 = int((end - prev_time).total_seconds())
         dur_bh = business_seconds(prev_time, end, settings.bh_start, settings.bh_end, set(json_to_set(settings.bh_days_json)))
         db.add(Stint(issue_key=key, status=prev_status, status_category=issue.status_category,
@@ -73,10 +74,3 @@ async def sync_run(params: Dict[str, Any]) -> Dict[str, Any]:
         count += 1
     db.close()
     return {"issues_processed": count}
-
-def json_to_set(s: str):
-    import json
-    try:
-        return set(json.loads(s))
-    except Exception:
-        return {0,1,2,3,4}

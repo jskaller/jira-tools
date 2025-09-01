@@ -1,4 +1,4 @@
-from typing import Protocol, List, Dict, Any
+from typing import Protocol, Dict, Any
 
 class JiraClient(Protocol):
     async def search_issues(self, jql: str, max_results: int = 50) -> Dict[str, Any]: ...

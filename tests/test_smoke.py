@@ -1,6 +1,5 @@
-import os, json
+import os
 from backend.db import init_db, SessionLocal, User, Settings
-from backend.security import verify_password
 
 def test_bootstrap_db(tmp_path, monkeypatch):
     monkeypatch.setenv('SQLITE_PATH', str(tmp_path/'db.sqlite3'))

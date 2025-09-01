@@ -6,7 +6,6 @@ class MockJiraClient:
         self._now = dt.datetime(2025, 8, 1, 12, 0, 0)
 
     async def search_issues(self, jql: str, max_results: int = 50) -> Dict[str, Any]:
-        # Return a small deterministic set
         issues = [
             {
                 "key": "PRJ-1",
@@ -38,7 +37,6 @@ class MockJiraClient:
         return {"issues": issues}
 
     async def get_issue_changelog(self, issue_key: str) -> Dict[str, Any]:
-        # Deterministic simple transitions
         base = [
             {"from": "To Do", "to": "In Progress", "at": (self._now - dt.timedelta(days=9)).isoformat()},
             {"from": "In Progress", "to": "Done", "at": (self._now - dt.timedelta(days=2)).isoformat()},

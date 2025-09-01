@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Request, Form, Depends
-from ..db import get_db, SessionLocal, User
-from ..security import verify_password, get_password_hash, require_user
+from fastapi import APIRouter, Request, Form
+from ..db import SessionLocal, User
+from ..security import verify_password
 
 router = APIRouter()
 

@@ -4,6 +4,6 @@ run:
 dev:
 	uvicorn backend.app:app --reload
 initdb:
-	python backend/app.py --initdb
+	python -m backend.app --initdb
 test:
 	pytest -q

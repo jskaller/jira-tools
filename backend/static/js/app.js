@@ -1,1 +1,1 @@
-// app-level helpers placeholder
+// app helpers

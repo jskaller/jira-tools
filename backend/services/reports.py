@@ -7,7 +7,6 @@ def create_report(params: Dict[str, Any], owner_id: int) -> int:
     r = Report(name=params.get("name","Report"), owner_id=owner_id, params_json=json.dumps(params))
     db.add(r)
     db.commit()
-    # Snapshot membership: for first drop, include all issues
     for issue in db.query(Issue).all():
         db.add(ReportIssue(report_id=r.id_pk, issue_key=issue.key))
     db.commit()
@@ -54,7 +53,6 @@ def csv_issue_stats(rid: int) -> Tuple[str, str]:
     db = SessionLocal()
     issues = [ri.issue_key for ri in db.query(ReportIssue).filter(ReportIssue.report_id==rid).all()]
     stints = db.query(Stint).filter(Stint.issue_key.in_(issues)).all()
-    # simple aggregation by status name
     agg = {}
     for s in stints:
         key = (s.issue_key, s.status)
@@ -70,7 +68,6 @@ def csv_issue_stats(rid: int) -> Tuple[str, str]:
     return (f"report-{rid}-issue-stats.csv", out.getvalue())
 
 def csv_rollups(rid: int) -> Tuple[str, str]:
-    # Minimal rollup stub for first drop (issue-level only); we will expand in next iteration
     db = SessionLocal()
     issues = [ri.issue_key for ri in db.query(ReportIssue).filter(ReportIssue.report_id==rid).all()]
     stints = db.query(Stint).filter(Stint.issue_key.in_(issues)).all()

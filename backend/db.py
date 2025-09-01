@@ -99,7 +99,6 @@ def init_db(force: bool=False):
     from .security import get_password_hash
     db = SessionLocal()
     if not db.query(User).first():
-        import os
         admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
         admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
         db.add(User(email=admin_email, password_hash=get_password_hash(admin_password), role="admin"))

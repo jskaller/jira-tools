@@ -19,7 +19,6 @@
 (async function() {
   const res = await fetch('/api/reports/{{ report_id }}');
   const data = await res.json();
-  // For first drop, fake a small chart using issue count
   const ctx = document.getElementById('chart').getContext('2d');
   if (window.Chart) {
     new Chart(ctx, {

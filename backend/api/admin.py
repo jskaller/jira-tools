@@ -49,7 +49,6 @@ def put_settings(payload: dict, user=Depends(require_admin)):
 
 @router.get("/test-connection")
 async def test_connection(user=Depends(require_admin)):
-    # We only test presence for first drop
     db = SessionLocal()
     s = db.query(Settings).first()
     db.close()

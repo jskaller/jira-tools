@@ -28,7 +28,6 @@ class HttpJiraClient:
         return {"Accept": "application/json"}
 
     async def search_issues(self, jql: str, max_results: int = 50) -> Dict[str, Any]:
-        # Minimal real call (may fail until configured); kept small for first drop
         params = {"jql": jql, "maxResults": max_results, "expand": "changelog"}
         r = await self.client.get("/rest/api/3/search", params=params)
         r.raise_for_status()
