@@ -1,4 +1,4 @@
-// admin.js v5
+// admin.js v6
 console.log('[admin.js v5] loaded');
 document.addEventListener('DOMContentLoaded', () => {
   console.log('[admin.js v5] DOM ready');
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        msg.textContent = 'Saved.';
+        msg.textContent = 'Saved. Reloading…'; setTimeout(()=>location.reload(), 300);
       } else {
         let t = 'Failed to save';
         try { const j = await res.json(); if (j?.error) t += ': ' + j.error; } catch {}

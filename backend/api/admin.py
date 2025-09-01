@@ -13,24 +13,27 @@ def fernet():
 @router.get("/settings")
 def get_settings(user=Depends(require_admin)):
     db = SessionLocal()
-    s = db.query(Settings).first()
-    db.close()
-    if not s:
-        raise HTTPException(500, "settings missing")
-    return {
-        "jira_base_url": s.jira_base_url,
-        "jira_email": s.jira_email,
-        "has_token": bool(s.jira_token_ciphertext),
-        "jql_default": s.jql_default,
-        "time_mode": s.time_mode,
-        "bh_start": s.bh_start,
-        "bh_end": s.bh_end,
-        "bh_days": json.loads(s.bh_days_json or "[]"),
-        "max_issues": s.max_issues,
-        "updated_days_limit": s.updated_days_limit,
-        "agg_mode": s.agg_mode,
-        "use_real_jira": s.use_real_jira,
-    }
+    try:
+        s = db.query(Settings).first()
+        if not s:
+            s = Settings()
+            db.add(s); db.commit(); db.refresh(s)
+        return {
+            "jira_base_url": s.jira_base_url,
+            "jira_email": s.jira_email,
+            "has_token": bool(s.jira_token_ciphertext),
+            "jql_default": s.jql_default,
+            "time_mode": s.time_mode,
+            "bh_start": s.bh_start,
+            "bh_end": s.bh_end,
+            "bh_days": __import__("json").loads(s.bh_days_json or "[]"),
+            "max_issues": s.max_issues,
+            "updated_days_limit": s.updated_days_limit,
+            "agg_mode": s.agg_mode,
+            "use_real_jira": s.use_real_jira,
+        }
+    finally:
+        db.close()
 
 @router.put("/settings")
 def put_settings(payload: dict, user=Depends(require_admin)):
@@ -40,39 +43,40 @@ def put_settings(payload: dict, user=Depends(require_admin)):
         s = db.query(Settings).first()
         if not s:
             s = Settings()
-            db.add(s)
-            db.commit()
-            db.refresh(s)
-        # Coerce types carefully
-        int_fields = ["bh_start","bh_end","max_issues","updated_days_limit"]
-        for k in int_fields:
+            db.add(s); db.commit(); db.refresh(s)
+        # Coerce ints
+        for k in ["bh_start","bh_end","max_issues","updated_days_limit"]:
             if k in payload and payload[k] is not None:
-                try:
-                    payload[k] = int(payload[k])
-                except Exception:
-                    return {"ok": False, "error": f"Invalid integer for {k}"}
-        bool_fields = ["use_real_jira"]
-        for k in bool_fields:
-            if k in payload and not isinstance(payload[k], bool):
-                v = str(payload[k]).lower()
-                payload[k] = v in ("1","true","yes","on")
+                payload[k] = int(payload[k])
+        # Coerce bools
+        if "use_real_jira" in payload:
+            v = payload["use_real_jira"]
+            if not isinstance(v, bool):
+                payload["use_real_jira"] = str(v).lower() in ("1","true","yes","on")
+        # Assign fields
         for k in ["jira_base_url","jira_email","jql_default","time_mode","bh_start","bh_end","max_issues","updated_days_limit","agg_mode","use_real_jira"]:
             if k in payload:
                 setattr(s, k, payload[k])
+        # bh_days
         if "bh_days" in payload and payload["bh_days"] is not None:
             import json as _json
-            try:
-                # accept list or stringified list
-                bh_days_val = payload["bh_days"]
-                if isinstance(bh_days_val, str):
-                    bh_days_val = _json.loads(bh_days_val)
-                s.bh_days_json = _json.dumps(bh_days_val)
-            except Exception as e:
-                return {"ok": False, "error": f"Invalid bh_days: {e}"}
+            bd = payload["bh_days"]
+            if isinstance(bd, str):
+                bd = _json.loads(bd)
+            s.bh_days_json = _json.dumps(bd)
+        # token
         if "jira_token" in payload and payload["jira_token"]:
             s.jira_token_ciphertext = fernet().encrypt(payload["jira_token"].encode()).decode()
-        db.commit()
-        return {"ok": True}
+        db.commit(); db.refresh(s)
+        return {
+            "ok": True,
+            "saved": {
+                "jira_base_url": s.jira_base_url,
+                "jira_email": s.jira_email,
+                "has_token": bool(s.jira_token_ciphertext),
+                "use_real_jira": s.use_real_jira
+            }
+        }
     except Exception as e:
         db.rollback()
         print("[api/admin] PUT /settings error:", repr(e))
@@ -138,3 +142,21 @@ async def test_connection_post(payload: dict | None = None, user=Depends(require
         return {"configured": True, "ok": True, "account": {"displayName": me.get("displayName"), "emailAddress": me.get("emailAddress"), "accountId": me.get("accountId")}}
     except Exception as e:
         return {"configured": True, "ok": False, "error": str(e)}
+
+@router.get("/_debug/settings")
+def debug_settings(user=Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        s = db.query(Settings).first()
+        if not s:
+            return {"exists": False}
+        return {
+            "exists": True,
+            "jira_base_url": s.jira_base_url,
+            "jira_email": s.jira_email,
+            "jira_token_len": len(s.jira_token_ciphertext or ""),
+            "use_real_jira": s.use_real_jira,
+        }
+    finally:
+        db.close()
+
