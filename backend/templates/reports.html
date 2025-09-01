@@ -6,5 +6,6 @@
 </div>
 <div id="reports-list" class="vstack gap-2"></div>
 {% endblock %}
-
-<script src="/static/js/reports.js"></script>
+{% block scripts %}
+  <script src="/static/js/reports.js?v=2" defer></script>
+{% endblock %}

@@ -1,4 +1,4 @@
-console.log('[admin.js] loaded');
+console.log('[admin.js v2] loaded');
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('[admin.js] DOM ready');
   const res = await fetch('/api/admin/settings');
