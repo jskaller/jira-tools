@@ -1,4 +1,6 @@
+console.log('[admin.js] loaded');
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('[admin.js] DOM ready');
   const res = await fetch('/api/admin/settings');
   if (res.ok) {
     const s = await res.json();
@@ -9,56 +11,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toggle = document.getElementById('use_real_jira');
     if (toggle) toggle.checked = !!s.use_real_jira;
   }
-});
-const adminForm = document.getElementById('admin-form');
-if (adminForm) {
-  adminForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const payload = Object.fromEntries(fd.entries());
-    const toggle = document.getElementById('use_real_jira');
-    payload.use_real_jira = toggle ? toggle.checked : false;
-    for (const k of ['bh_start','bh_end','max_issues','updated_days_limit']) {
-      if (k in payload) payload[k] = Number(payload[k]);
-    }
-    const res = await fetch('/api/admin/settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-    const msg = document.getElementById('admin-msg');
-    if (msg) msg.textContent = res.ok ? 'Saved.' : 'Failed to save';
-  });
-}
-const testBtn = document.getElementById('test-conn');
-if (testBtn) {
-  testBtn.addEventListener('click', async () => {
-    const r = await fetch('/api/admin/test-connection');
-    const j = await r.json();
-    const msg = document.getElementById('admin-msg');
-    if (msg) msg.textContent = j.configured ? 'Looks configured.' : 'Not configured.';
-  });
-}
 
+  const adminForm = document.getElementById('admin-form');
+  if (adminForm) {
+    adminForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = Object.fromEntries(fd.entries());
+      const toggle = document.getElementById('use_real_jira');
+      payload.use_real_jira = toggle ? toggle.checked : false;
+      for (const k of ['bh_start','bh_end','max_issues','updated_days_limit']) {
+        if (k in payload) payload[k] = Number(payload[k]);
+      }
+      const res = await fetch('/api/admin/settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      const msg = document.getElementById('admin-msg');
+      if (msg) msg.textContent = res.ok ? 'Saved.' : 'Failed to save';
+    });
+  }
 
-(function(){
   const btn = document.getElementById('test-conn');
-  if (!btn) return;
+  const msg = document.getElementById('admin-msg');
+  if (!btn) { console.warn('[admin.js] test-conn button not found'); return; }
   btn.addEventListener('click', async () => {
+    console.log('[admin.js] Test connection clicked');
     btn.disabled = true;
-    const msg = document.getElementById('admin-msg');
     if (msg) msg.textContent = 'Testing...';
     try {
       const r = await fetch('/api/admin/test-connection');
-      const j = await r.json();
+      const j = await r.json().catch(()=>({ok:false,error:'Bad JSON'}));
+      console.log('[admin.js] Test response', j);
       if (!j.configured) {
-        msg.textContent = 'Not configured: ' + (j.error || 'Provide base URL, email, and token.');
+        if (msg) msg.textContent = 'Not configured: ' + (j.error || 'Provide base URL, email, token.');
       } else if (j.ok) {
         const who = (j.account && (j.account.displayName || j.account.emailAddress)) || 'OK';
-        msg.textContent = 'Connected as ' + who;
+        if (msg) msg.textContent = 'Connected as ' + who;
       } else {
-        msg.textContent = 'Connection failed: ' + (j.error || 'Unknown error');
+        if (msg) msg.textContent = 'Connection failed: ' + (j.error || 'Unknown error');
       }
     } catch (e) {
       if (msg) msg.textContent = 'Connection failed: ' + e;
+      console.error(e);
     } finally {
       btn.disabled = false;
     }
   });
-})();
+});

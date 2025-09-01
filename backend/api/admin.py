@@ -50,6 +50,7 @@ def put_settings(payload: dict, user=Depends(require_admin)):
 
 @router.get("/test-connection")
 async def test_connection(user=Depends(require_admin)):
+    print('[api/admin] /test-connection called')
     from ..clients.http_jira import HttpJiraClient
     db = SessionLocal()
     s = db.query(Settings).first()
