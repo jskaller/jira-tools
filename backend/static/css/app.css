@@ -1,1 +1,3 @@
-.jr-body{background:#fafafa}
+.jr-body{background:var(--bs-body-bg)}
+.navbar .btn{margin-left:.25rem}
+#chart{max-height:420px;width:100%}
