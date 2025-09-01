@@ -7,8 +7,7 @@ from ..util.crypto import fernet_from_env
 router = APIRouter()
 
 def fernet():
-    key = os.getenv("APP_SECRET", "dev-secret").encode().ljust(32, b'0')[:32]
-    return Fernet(key)
+    return fernet_from_env()
 
 @router.get("/settings")
 def get_settings(user=Depends(require_admin)):

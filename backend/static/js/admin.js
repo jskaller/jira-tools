@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const j = await r.json();
         console.log('[admin.js v5] Test response', j);
         if (!j.configured) {
-          msg.textContent = 'Not configured: ' + (j.error || 'Missing fields');
+          msg.textContent = 'Not configured (fill all fields): ' + (j.error || 'Missing fields');
         } else if (j.ok) {
           const who = (j.account && (j.account.displayName || j.account.emailAddress)) || 'OK';
           msg.textContent = 'Connected as ' + who;
